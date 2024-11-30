@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="library.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure query browser" current="1"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="978"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="Books" custom_title="0" dock_id="1" table="4,5:mainBooks"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000011e00ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">/*Turning Pages with Data: Unveiling Insights from Library Analytics*/
+
+-- Determine how many copies of the book 'Dracula'
+-- are available for library patrons to borrow.
+
+SELECT COUNT(Books.Title) 
+FROM Books 
+WHERE Books.Title = 'Dracula';
+
+SELECT COUNT(Books.Title)
+FROM Loans 
+JOIN Books ON Loans.BookID = Books.BookID 
+WHERE Books.Title = 'Dracula' 
+  AND Loans.ReturnedDate IS NULL;
+
+SELECT
+  (SELECT COUNT(Books.Title) 
+    FROM Books 
+    WHERE Books.Title = 'Dracula') - 
+  (SELECT COUNT(Books.Title)
+    FROM Books 
+    JOIN Loans ON Books.BookID = Loans.BookID 
+    WHERE Books.Title = 'Dracula' 
+    AND Loans.ReturnedDate IS NULL)
+  AS AvailableCopies;
+  
+  -- Add books to the library database.
+
+-- Title: Dracula
+-- Author: Bram Stoker
+-- Published: 1897
+-- ID Number: 4819277482
+
+-- Title: Gulliver’s Travels into Several Remote Nations of the World
+-- Author: Jonathan Swift
+-- Published: 1729
+-- ID Number: 4899254401
+
+INSERT INTO Books (Title, Author, Published, Barcode)
+VALUES
+('Dracula', 'Bram Stoker', '1897', '4819277482'),
+('Gulliver''s Travels into Several Remote Nations of the World', 'Jonathan Swift', '1729', '4899254401');
+
+SELECT * FROM Books
+ORDER BY BookID DESC
+LIMIT 5;
+
+-- Check out two books for Jack Vaan (jvaan@wisdompets.com).
+-- Book 1: The Picture of Dorian Gray, 2855934983
+-- Book 2: Great Expectations, 4043822646
+-- The checkout date is August 25, 2022 and the 
+-- due date is September 8, 2022.
+
+INSERT INTO Loans (BookID, PatronID, LoanDate, DueDate)
+VALUES (
+  (SELECT BookID 
+    FROM Books 
+    WHERE Barcode = '2855934983'), 
+  (SELECT PatronID 
+    FROM Patrons 
+    WHERE Email = 'jvaan@wisdompets.com'),
+  '2022-08-25',
+  '2022-09-08');
+
+INSERT INTO Loans (BookID, PatronID, LoanDate, DueDate)
+VALUES (
+  (SELECT BookID 
+    FROM Books 
+    WHERE Barcode = '4043822646'), 
+  (SELECT PatronID 
+    FROM Patrons 
+    WHERE Email = 'jvaan@wisdompets.com'), 
+  '2022-08-25', 
+  '2022-09-08');
+
+SELECT * 
+FROM Loans 
+JOIN Books ON Loans.BookID = Books.BookID 
+WHERE PatronID = (
+  SELECT PatronID 
+  FROM Patrons 
+  WHERE Email = 'jvaan@wisdompets.com');
+  
+  -- Prepare a report of books due to be returned
+-- to the library on July 13, 2022.
+-- Provide the due date, the book title, and
+-- the borrower's first name and email address.
+
+SELECT Loans.DueDate, Books.Title, Patrons.FirstName, Patrons.Email
+FROM Loans
+JOIN Books ON Loans.BookID = Books.BookID
+JOIN Patrons ON Loans.PatronID = Patrons.PatronID
+WHERE Loans.DueDate = '2022-07-13' 
+AND Loans.ReturnedDate IS NULL;
+
+-- Return three books to the library using
+-- their bar codes.
+-- Return date: July 5, 2022
+-- Book 1: 6435968624
+-- Book 2: 5677520613
+-- Book 3: 8730298424
+
+UPDATE Loans 
+SET ReturnedDate = '2022-07-05' 
+WHERE BookID = 
+  (SELECT BookID FROM Books 
+  WHERE Barcode = '6435968624')
+  AND ReturnedDate IS NULL;
+
+UPDATE Loans 
+SET ReturnedDate = '2022-07-05' 
+WHERE BookID = 
+  (SELECT BookID FROM Books 
+  WHERE Barcode = '5677520613')
+  AND ReturnedDate IS NULL;
+
+UPDATE Loans 
+SET ReturnedDate = '2022-07-05' 
+WHERE BookID = 
+  (SELECT BookID FROM Books 
+  WHERE Barcode = '8730298424')
+  AND ReturnedDate IS NULL;
+  
+  -- Prepare a report of the library patrons
+-- who have checked out the fewest books.
+
+SELECT COUNT(Loans.LoanID) AS LoanCount, Patrons.FirstName, Patrons.Email
+FROM Loans
+JOIN Patrons ON Loans.PatronID=Patrons.PatronID
+GROUP BY Loans.PatronID
+ORDER BY LoanCount ASC
+LIMIT 15;
+
+-- Create a list of books to feature in an exhibit.
+
+-- Make a pick list of books published from 1890-1899 
+-- which are not currently checked out.
+
+SELECT Title, Barcode
+FROM Books
+WHERE Published BETWEEN 1890 AND 1899
+AND (BookID NOT IN 
+  (SELECT BookID 
+  FROM Loans 
+  WHERE ReturnedDate IS NULL)) 
+ORDER BY Title;
+
+-- Create two reports about book statistics.
+
+-- Report 1: Show how many titles were published 
+-- in each year.
+
+-- Report 2: Show the five books that have been
+-- checked out the most.
+
+SELECT Published, COUNT(DISTINCT(Title)) AS PubCount 
+FROM Books 
+GROUP BY Published
+ORDER BY PubCount DESC;
+
+SELECT COUNT(Loans.LoanID) AS LoanCount, Books.Title 
+FROM Loans 
+JOIN Books ON Loans.BookID=Books.BookID 
+GROUP BY Books.Title 
+ORDER BY LoanCount DESC 
+LIMIT 5;
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
